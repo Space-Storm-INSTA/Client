@@ -1,5 +1,5 @@
 (function() {
-  var Allie, Enemy, GameScene;
+  var Allie, Enemy, Explosion, GameScene, Shoot;
 
   GameScene = (function() {
     function GameScene() {}
@@ -14,9 +14,12 @@
       this.shoots = new Array();
       this.enemys = new Array();
       this.allies = new Array();
+      this.miscs = new Array();
       this.lastBullet = 0;
       this.score = 0;
       this.engine = engine;
+      this.master = false;
+      this.playerWeapon = 2;
       createjs.Sound.registerSound("assets/shoot-1.mp3", "shootSound1");
       createjs.Sound.registerSound("assets/explosion-1.mp3", "explosion");
       musicLoad = (function(_this) {
@@ -35,10 +38,11 @@
       engine.stage.addChild(this.speedEffectBarrel);
       this.backgroundBarrel.y = -1080;
       this.speedEffectBarrel.y = -900;
-      this.speedEffect.alpha = 0.4;
-      this.speedEffectBarrel.alpha = 0.4;
+      this.speedEffect.alpha = 0.3;
+      this.speedEffectBarrel.alpha = 0.3;
       this.speed = 20;
-      this.playerSpeed = 30;
+      this.playerSpeed = 15;
+      this.life = 100;
       this.player = new createjs.Bitmap("assets/player_r_m.png");
       playerLeftModel = new Image();
       playerLeftModel.src = "assets/player_r_l1.png";
@@ -106,15 +110,35 @@
           return _this.playerMovements.shoot = false;
         };
       })(this));
-      return this.connectToServer();
+      this.connectToServer();
+      return setInterval((function(_this) {
+        return function() {
+          var i, len, ref, results, s;
+          ref = _this.shoots;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            s = ref[i];
+            if (s === void 0) {
+              continue;
+            }
+            if (s.sprite.x < 0 || s.sprite.y > 1000) {
+              s["delete"](true);
+              continue;
+            } else {
+              results.push(void 0);
+            }
+          }
+          return results;
+        };
+      })(this), 1000);
     };
 
     GameScene.prototype.update = function(engine, gametime) {
-      var e, i, instance, j, k, len, len1, len2, ref, ref1, ref2, s, shootBmp;
-      this.background.y += this.speed;
-      this.backgroundBarrel.y += this.speed;
-      this.speedEffect.y += this.speed * 5;
-      this.speedEffectBarrel.y += this.speed * 5;
+      var a, e, i, j, k, l, len, len1, len2, len3, len4, m, n, ref, ref1, ref2, ref3, ref4, s, shoot;
+      this.background.y += this.speed / 4;
+      this.backgroundBarrel.y += this.speed / 4;
+      this.speedEffect.y += this.speed * 2;
+      this.speedEffectBarrel.y += this.speed * 2;
       if (this.backgroundBarrel.y >= 1080) {
         this.backgroundBarrel.y = -1080;
       }
@@ -149,42 +173,125 @@
         this.speed -= 1;
       }
       if (this.playerMovements.shoot && this.lastBullet < gametime) {
-        this.lastBullet = gametime + 5;
-        shootBmp = new createjs.Bitmap("assets/vulcan_1.png");
-        engine.stage.addChild(shootBmp);
-        shootBmp.x = this.player.x + 27;
-        shootBmp.y = this.player.y + 20;
-        this.shoots.push(shootBmp);
-        instance = createjs.Sound.play("shootSound1");
-        instance.volume = 0.07;
-        this.socket.send(JSON.stringify({
-          opcode: 6,
-          type: 1,
-          position: {
-            x: shootBmp.x,
-            y: shootBmp.y
-          }
-        }));
+        switch (this.playerWeapon) {
+          case 1:
+            shoot = new Shoot(this, this.engine, {
+              type: 1,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              net: true
+            });
+            break;
+          case 2:
+            shoot = new Shoot(this, this.engine, {
+              type: 1,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              net: true
+            });
+            shoot = new Shoot(this, this.engine, {
+              type: 3,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              offset: {
+                x: 1,
+                y: -20
+              },
+              net: true
+            });
+            shoot = new Shoot(this, this.engine, {
+              type: 3,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              offset: {
+                x: -1,
+                y: -20
+              },
+              net: true
+            });
+            shoot = new Shoot(this, this.engine, {
+              type: 3,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              offset: {
+                x: 2,
+                y: -20
+              },
+              net: true
+            });
+            shoot = new Shoot(this, this.engine, {
+              type: 3,
+              x: this.player.x + 27,
+              y: this.player.y + 20,
+              side: false,
+              offset: {
+                x: -2,
+                y: -20
+              },
+              net: true
+            });
+        }
+        this.lastBullet = gametime + 1;
       }
       ref = this.shoots;
       for (i = 0, len = ref.length; i < len; i++) {
         s = ref[i];
-        ref1 = this.enemys;
-        for (j = 0, len1 = ref1.length; j < len1; j++) {
-          e = ref1[j];
-          if (e.active) {
-            if (ndgmr.checkRectCollision(e.sprite, s)) {
+        if (s === void 0) {
+          continue;
+        }
+        if (!s.active) {
+          continue;
+        }
+        if (s.active && s.side) {
+          ref1 = this.allies;
+          for (j = 0, len1 = ref1.length; j < len1; j++) {
+            a = ref1[j];
+            if (ndgmr.checkRectCollision(a.sprite, s.sprite)) {
+              a.removeLife(5);
+              s["delete"]();
+              continue;
+            }
+          }
+          if (ndgmr.checkRectCollision(this.player, s.sprite)) {
+            this.removeLife(5);
+            s["delete"]();
+            continue;
+          }
+        }
+        ref2 = this.enemys;
+        for (k = 0, len2 = ref2.length; k < len2; k++) {
+          e = ref2[k];
+          if (e === void 0) {
+            continue;
+          }
+          if (e.active && !s.side) {
+            if (ndgmr.checkRectCollision(e.sprite, s.sprite)) {
               e["delete"](true);
-              engine.stage.removeChild(s);
+              s["delete"]();
             }
           }
         }
-        s.y += -30;
+        s.update(gametime);
       }
-      ref2 = this.enemys;
-      for (k = 0, len2 = ref2.length; k < len2; k++) {
-        e = ref2[k];
+      ref3 = this.enemys;
+      for (l = 0, len3 = ref3.length; l < len3; l++) {
+        e = ref3[l];
+        if (e === void 0) {
+          continue;
+        }
         e.update(gametime);
+      }
+      ref4 = this.miscs;
+      for (n = 0, len4 = ref4.length; n < len4; n++) {
+        m = ref4[n];
+        if (m !== void 0) {
+          m.update(gametime);
+        }
       }
       return this.socket.send(JSON.stringify({
         opcode: 4,
@@ -195,17 +302,30 @@
       }));
     };
 
+    GameScene.prototype.removeLife = function(pts) {
+      if (this.master) {
+        return this.socket.send(JSON.stringify({
+          opcode: 10,
+          id: this.playerId
+        }));
+      }
+    };
+
     GameScene.prototype.connectToServer = function() {
-      this.socket = new WebSocket("ws://172.16.15.56:3000/");
+      this.socket = new WebSocket("ws://172.16.15.120:3001/");
       return this.socket.onmessage = (function(_this) {
         return function(e) {
-          var a, allie, data, enemy, i, instance, j, len, len1, ref, ref1, results, results1, shootBmp;
+          var a, allie, data, enemy, i, j, len, len1, ref, ref1, results, results1, shoot;
           data = JSON.parse(e.data);
           switch (data.opcode) {
+            case 0:
+              _this.master = true;
+              return console.log("Im master");
             case 1:
+              _this.playerId = Math.floor((Math.random() * 987653) + 1);
               return _this.socket.send(JSON.stringify({
                 opcode: 2,
-                id: Math.floor((Math.random() * 987653) + 1)
+                id: _this.playerId
               }));
             case 3:
               allie = new Allie(_this, _this.engine, data.id);
@@ -239,26 +359,43 @@
               return results1;
               break;
             case 7:
-              console.log("Missile");
               switch (data.type) {
                 case 1:
-                  shootBmp = new createjs.Bitmap("assets/vulcan_1.png");
-                  _this.engine.stage.addChild(shootBmp);
-                  shootBmp.x = data.x;
-                  shootBmp.y = data.y;
-                  _this.shoots.push(shootBmp);
-                  instance = createjs.Sound.play("shootSound1");
-                  return instance.volume = 0.07;
+                  return shoot = new Shoot(_this, _this.engine, {
+                    type: data.type,
+                    x: data.x,
+                    y: data.y,
+                    side: false,
+                    offset: {
+                      x: 0,
+                      y: 0
+                    }
+                  });
+                case 3:
+                  return shoot = new Shoot(_this, _this.engine, {
+                    type: data.type,
+                    x: data.x,
+                    y: data.y,
+                    side: false,
+                    offset: {
+                      x: data.offset.x,
+                      y: data.offset.y
+                    }
+                  });
               }
               break;
             case 9:
-              console.log("New ennemie");
               enemy = new Enemy(_this, _this.engine, {
                 x: data.x
               }, data.ennemi.name, {
-                speed: data.ennemi.speed
+                speed: data.ennemi.speed,
+                type: data.ennemi.id_ennemie
               });
               return _this.enemys.push(enemy);
+            case 10:
+              _this.life = data.life;
+              $("[data-life]").text(_this.life + "%");
+              return $("[data-life-bar]").css('width', _this.life + "%");
           }
         };
       })(this);
@@ -283,7 +420,135 @@
       return this.scene.allies.splice(this.scene.allies.indexOf(this), 1);
     };
 
+    Allie.prototype.removeLife = function(pts) {
+      if (this.scene.master) {
+        return this.scene.socket.send(JSON.stringify({
+          opcode: 10,
+          id: this.id
+        }));
+      }
+    };
+
     return Allie;
+
+  })();
+
+  Shoot = (function() {
+    function Shoot(scene, engine1, config) {
+      var instance;
+      this.scene = scene;
+      this.engine = engine1;
+      this.config = config;
+      if (this.config.visual !== void 0) {
+        this.sprite = new createjs.Bitmap("assets/" + this.config.visual);
+      } else {
+        this.sprite = new createjs.Bitmap("assets/vulcan_1.png");
+      }
+      this.engine.stage.addChild(this.sprite);
+      this.sprite.x = this.config.x;
+      this.sprite.y = this.config.y;
+      this.typeOf = this.config.type;
+      this.side = this.config.side;
+      this.active = true;
+      this.scene.shoots.push(this);
+      instance = createjs.Sound.play("shootSound1");
+      instance.volume = 0.07;
+      if (this.config.net) {
+        if (this.typeOf === 3) {
+          this.scene.socket.send(JSON.stringify({
+            opcode: 6,
+            type: this.typeOf,
+            position: {
+              x: this.sprite.x,
+              y: this.sprite.y
+            },
+            offset: {
+              x: this.config.offset.x,
+              y: this.config.offset.y
+            }
+          }));
+        } else {
+          this.scene.socket.send(JSON.stringify({
+            opcode: 6,
+            type: this.typeOf,
+            position: {
+              x: this.sprite.x,
+              y: this.sprite.y
+            },
+            offset: {
+              x: 0,
+              y: 0
+            }
+          }));
+        }
+      }
+    }
+
+    Shoot.prototype.update = function(gametime) {
+      switch (this.typeOf) {
+        case 1:
+          return this.sprite.y -= 30;
+        case 2:
+          return this.sprite.y += 15;
+        case 3:
+          this.sprite.x += this.config.offset.x;
+          return this.sprite.y += this.config.offset.y;
+      }
+    };
+
+    Shoot.prototype["delete"] = function(fromArray) {
+      if (fromArray == null) {
+        fromArray = false;
+      }
+      this.active = false;
+      this.sprite.alpha = 0;
+      this.engine.stage.removeChild(this.sprite);
+      if (fromArray) {
+        return this.scene.shoots.splice(this.scene.shoots.indexOf(this), 1);
+      }
+    };
+
+    return Shoot;
+
+  })();
+
+  Explosion = (function() {
+    function Explosion(scene, engine1, config) {
+      var f, frame, i, len, ref;
+      this.scene = scene;
+      this.engine = engine1;
+      this.config = config;
+      this.sprite = new createjs.Bitmap("assets/explosions/explosion_" + this.config.type + "_" + this.config.frames[0] + ".png");
+      this.sprite.x = this.config.x;
+      this.sprite.y = this.config.y;
+      this.framesImage = [];
+      this.currentFrame = 0;
+      this.engine.stage.addChild(this.sprite);
+      this.scene.miscs.push(this);
+      this.lastUpdate = this.engine.gametime;
+      ref = this.config.frames;
+      for (i = 0, len = ref.length; i < len; i++) {
+        frame = ref[i];
+        this.sprite.scaleX += this.config.scale !== void 0 ? this.config.scale : 0.1;
+        this.sprite.scaleY += this.config.scale !== void 0 ? this.config.scale : 0.1;
+        f = new Image();
+        f.src = "assets/explosions/explosion_" + this.config.type + "_" + frame + ".png";
+        this.framesImage.push(f);
+      }
+    }
+
+    Explosion.prototype.update = function(gametime) {
+      console.log('misc');
+      this.currentFrame++;
+      if (this.currentFrame < this.framesImage.length) {
+        return this.sprite.image = this.framesImage[this.currentFrame];
+      } else {
+        this.engine.stage.removeChild(this.sprite);
+        return this.scene.miscs.splice(this.scene.miscs.indexOf(this), 1);
+      }
+    };
+
+    return Explosion;
 
   })();
 
@@ -292,39 +557,115 @@
       this.scene = scene;
       this.engine = engine1;
       this.config = config;
+      this.typeOf = this.config.type;
       this.sprite = new createjs.Bitmap("assets/" + visual);
       this.sprite.x = position.x;
       this.sprite.y = -100;
       this.active = true;
       this.engine.stage.addChild(this.sprite);
       this.speed = this.config.speed;
-      console.log(this.speed);
+      this.lastShoot = this.engine.gametime + 30;
     }
 
     Enemy.prototype["delete"] = function(sound) {
-      var instance;
+      var explo, exploType, frames, instance, offset, scale;
       if (sound == null) {
         sound = false;
       }
       this.engine.stage.removeChild(this.sprite);
       this.active = false;
+      this.scene.enemys.splice(this.scene.enemys.indexOf(this), 1);
       if (sound) {
+        this.scene.socket.send(JSON.stringify({
+          opcode: 11,
+          type: this.typeOf
+        }));
+        exploType = 1;
+        scale = 0.1;
+        offset = 0;
+        frames = [];
+        switch (this.typeOf) {
+          case 2:
+            frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"];
+            exploType = 1;
+            break;
+          case 1:
+            frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"];
+            exploType = 1;
+            break;
+          case 3:
+            frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09"];
+            exploType = 3;
+            scale = 0.3;
+            offset = -80;
+        }
+        explo = new Explosion(this.scene, this.engine, {
+          frames: frames,
+          speed: 5,
+          x: this.sprite.x + offset,
+          y: this.sprite.y + offset,
+          type: exploType,
+          scale: scale
+        });
         instance = createjs.Sound.play("explosion");
-        return instance.volume = 0.05;
+        return instance.volume = 0.15;
       }
     };
 
     Enemy.prototype.update = function(gametime) {
+      var a, i, len, ref, shoot;
       if (!this.active) {
         return;
       }
-      this.speed += 0.5;
-      this.sprite.y += this.speed;
+      if (this.typeOf === 1 || this.typeOf === 2) {
+        if (this.typeOf === 2) {
+          if (this.sprite.x > this.scene.player.x) {
+            this.sprite.x -= 3;
+          }
+          if (this.sprite.x < this.scene.player.x) {
+            this.sprite.x += 3;
+          }
+        }
+        this.speed += 0.2;
+        this.sprite.y += this.speed;
+        if (gametime > this.lastShoot) {
+          this.lastShoot = gametime + 100;
+          shoot = new Shoot(this.scene, this.engine, {
+            type: 2,
+            x: this.sprite.x + 27,
+            y: this.sprite.y + 70,
+            side: true,
+            visual: "plasma_1.png"
+          });
+        }
+      } else if (this.typeOf === 3) {
+        this.sprite.rotation += 5;
+
+        /*
+        if @sprite.y < 100
+          @speed += 0.5
+        else
+          @speed -= 0.2
+         */
+        this.sprite.y += this.speed;
+      }
       if (this.sprite.y > 1080) {
         this["delete"]();
+        return;
       }
       if (ndgmr.checkRectCollision(this.scene.player, this.sprite) !== null) {
-        return this["delete"]();
+        this.scene.removeLife(5);
+        this["delete"]();
+        return;
+      }
+      ref = this.scene.allies;
+      for (i = 0, len = ref.length; i < len; i++) {
+        a = ref[i];
+        if (ndgmr.checkRectCollision(a.sprite, this.sprite) !== null) {
+          a.removeLife(5);
+          this["delete"]();
+          return;
+        }
       }
     };
 
@@ -378,6 +719,7 @@
       this.currentScene = null;
       this.stage = new createjs.Stage(this.canvas);
       this.gametime = 0;
+      this.lock = false;
       setInterval((function(_this) {
         return function() {
           return _this.process();
@@ -395,10 +737,16 @@
     };
 
     NEngine.prototype.update = function() {
+      var lock;
+      if (lock) {
+        return;
+      }
+      lock = true;
       this.gametime++;
       if (this.currentScene !== null) {
         this.currentScene.update(this, this.gametime);
-        return this.stage.update();
+        this.stage.update();
+        return lock = false;
       }
     };
 

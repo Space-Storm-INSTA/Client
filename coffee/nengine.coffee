@@ -4,6 +4,7 @@ class NEngine
     @currentScene = null
     @stage = new createjs.Stage @canvas
     @gametime = 0
+    @lock = false
     setInterval(=>
       @process()
     , 1000 / 30);
@@ -16,10 +17,13 @@ class NEngine
     @update()
 
   update: ->
+    if lock then return
+    lock = true
     @gametime++
     if @currentScene != null
       @currentScene.update @, @gametime
       @stage.update()
+      lock = false
 
 
 window.NRA.NEngine = NEngine
