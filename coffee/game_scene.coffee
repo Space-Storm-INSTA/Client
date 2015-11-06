@@ -80,12 +80,13 @@ class GameScene
     setInterval(=>
       for s in @shoots
         if s == undefined then continue
-        if s.sprite.x < 0 or s.sprite.y > 1000
-          s.delete(true)
+        if not s.active
+          s.deleteArray()
           continue
     , 1000)
 
   update: (engine, gametime) ->
+    #console.log "Misc : #{@miscs.length}, Shoots : #{@shoots.length}, Ennemys : #{@enemys.length}"
     @background.y += @speed / 4
     @backgroundBarrel.y += @speed/ 4
     @speedEffect.y += @speed * 2
@@ -101,16 +102,19 @@ class GameScene
 
     # Movements
     if @playerMovements.right
-      @player.x += @playerSpeed
-      @player.image = @playerModel.right
+      if @player.x < 1080
+        @player.x += @playerSpeed
+        @player.image = @playerModel.right
     if @playerMovements.left
-      @player.x += -@playerSpeed
-      @player.image = @playerModel.left
+      if @player.x > 0
+        @player.x += -@playerSpeed
+        @player.image = @playerModel.left
     if not @playerMovements.right and not @playerMovements.left
       @player.image = @playerModel.normal
     if @playerMovements.up
-      @player.y += -@playerSpeed
-      @speed += 2
+      if @player.y > 150
+        @player.y += -@playerSpeed
+        @speed += 2
     if @player.y < 550
       @player.y += @playerSpeed / 2
       @speed -= 1
@@ -126,11 +130,17 @@ class GameScene
           shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: -1, y: -20 }, net: true })
           shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: 2, y: -20 }, net: true })
           shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: -2, y: -20 }, net: true })
+          shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: 4, y: -20 }, net: true })
+          shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: -4, y: -20 }, net: true })
+          shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: 6, y: -20 }, net: true })
+          shoot = new Shoot(@, @engine, { type: 3, x: @player.x + 27, y: @player.y + 20, side: false, offset: { x: -6, y: -20 }, net: true })
 
-      @lastBullet = gametime + 1
+
+      @lastBullet = gametime + 5
 
     for s in @shoots
       if s == undefined then continue
+      s.update(gametime)
       if not s.active then continue
       if s.active and s.side
         for a in @allies
@@ -146,9 +156,9 @@ class GameScene
         if e == undefined then continue
         if e.active and not s.side
           if ndgmr.checkRectCollision(e.sprite, s.sprite)
-            e.delete(true)
+            e.takeDamage()
+            #e.delete(true)
             s.delete()
-      s.update(gametime)
 
     # Enemys
     for e in @enemys
@@ -173,8 +183,13 @@ class GameScene
           id: @playerId
         }))
 
+  getAllie: (id) ->
+    console.log id
+    for a in @allies
+      if a.id == id then return a
+
   connectToServer: ->
-    @socket = new WebSocket("ws://172.16.15.120:3001/");
+    @socket = new WebSocket("ws://5.196.69.227:3001/");
     @socket.onmessage = (e) =>
       data = JSON.parse(e.data)
       switch data.opcode
@@ -222,12 +237,70 @@ class GameScene
                 })
         when 9 # Ennemie
           enemy = new Enemy(@, @engine, { x : data.x}, data.ennemi.name,
-            { speed: data.ennemi.speed, type: data.ennemi.id_ennemie })
+            { speed: data.ennemi.speed, type: data.ennemi.id_ennemie, life: data.ennemi.life })
           @enemys.push enemy
         when 10 # life
           @life = data.life
           $("[data-life]").text @life + "%"
           $("[data-life-bar]").css('width', @life + "%");
+          if data.dead
+            @speed = 20
+            frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09", "10"]
+            exploType = 1
+            scale = 0.4
+            offset = -80
+            x = @player.x
+            y = @player.y
+            for i in [0..5]
+              setTimeout(=>
+                instance = createjs.Sound.play("explosion")
+                instance.volume = 0.15
+                explo = new Explosion(@, @engine,
+                  {
+                    frames: frames, speed: 5,
+                    x: x + Math.floor((Math.random() * 50) + 0),
+                    y: y + Math.floor((Math.random() * 50) + 0),
+                    type: exploType,
+                    scale: scale
+                  })
+              , i * 200)
+            @player.x = 1080 / 2 + 40
+            @player.y = 550
+        when 13
+          console.log "Received text"
+          partie = data.partie
+          $("#bigtext").show()
+          $("#bigtext").animate { opacity: 1 }, 2000
+          $("#bigtext").css 'color', data.color
+          $("#bigtext").text(partie)
+          console.log 'Text : ' + partie
+          setTimeout(=>
+            $("#bigtext").animate { opacity: 0 }, 2000
+          , 5000)
+        when 20 # Player dead
+          console.log "player dead"
+          frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09", "10"]
+          exploType = 1
+          scale = 0.4
+          offset = -80
+          a = @getAllie(data.playerDead)
+          x = a.sprite.x
+          y = a.sprite.y
+          for i in [0..5]
+            setTimeout(=>
+              instance = createjs.Sound.play("explosion")
+              instance.volume = 0.15
+              explo = new Explosion(@, @engine,
+                {
+                  frames: frames, speed: 5,
+                  x: x + Math.floor((Math.random() * 50) + 0),
+                  y: y + Math.floor((Math.random() * 50) + 0),
+                  type: exploType,
+                  scale: scale
+                })
+            , i * 200)
+
+
       #console.log data
 
 class Allie
@@ -279,6 +352,10 @@ class Shoot
           }))
 
   update: (gametime) ->
+    if @sprite.y > 1080
+      @active = false
+    if @sprite.y < 0
+      @active = false
     switch @typeOf
       when 1 # Normal shoot
         @sprite.y -= 30
@@ -287,6 +364,9 @@ class Shoot
       when 3 # Yolo
         @sprite.x += @config.offset.x
         @sprite.y += @config.offset.y
+
+  deleteArray: ->
+    @scene.shoots.splice(@scene.shoots.indexOf(@), 1)
 
   delete: (fromArray = false)->
     @active = false
@@ -313,7 +393,6 @@ class Explosion
       @framesImage.push(f)
 
   update: (gametime) ->
-    console.log 'misc'
     @currentFrame++
     if @currentFrame < @framesImage.length
       @sprite.image = @framesImage[@currentFrame]
@@ -331,6 +410,11 @@ class Enemy
     @engine.stage.addChild @sprite
     @speed = @config.speed
     @lastShoot = @engine.gametime + 30
+    @life = @config.life
+    @cache = { direction: false }
+    if @typeOf == 4
+      @sprite.scaleX = 2
+      @sprite.scaleY = 2
 
   delete: (sound = false) ->
     @engine.stage.removeChild @sprite
@@ -352,6 +436,24 @@ class Enemy
         when 1
           frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09", "10"]
           exploType = 1
+        when 4
+          frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09"]
+          exploType = 3
+          scale = 0.3
+          offset = -80
+          for i in [0..10]
+            setTimeout(=>
+              instance = createjs.Sound.play("explosion")
+              instance.volume = 0.30
+              explo = new Explosion(@scene, @engine,
+                {
+                  frames: frames, speed: 5,
+                  x: @sprite.x + Math.floor((Math.random() * 50) + 0),
+                  y: @sprite.y + Math.floor((Math.random() * 50) + 0),
+                  type: exploType,
+                  scale: scale
+                })
+            , i * 200)
         when 3
           frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09"]
           exploType = 3
@@ -367,6 +469,26 @@ class Enemy
         })
       instance = createjs.Sound.play("explosion")
       instance.volume = 0.15
+
+  takeDamage: (pt = 1) ->
+    if @typeOf == 4
+      frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09"]
+      exploType = 3
+      scale = 0
+      offset = Math.floor((Math.random() * 50) + 0)
+      explo = new Explosion(@scene, @engine,
+        {
+          frames: frames, speed: 5,
+          x: @sprite.x + offset,
+          y: @sprite.y + offset,
+          type: exploType,
+          scale: scale
+        })
+      instance = createjs.Sound.play("explosion")
+      instance.volume = 0.15
+    @life -= 1
+    if @life <= 0
+      @delete(true)
 
   update: (gametime) ->
     if not @active then return
@@ -391,15 +513,36 @@ class Enemy
         @speed -= 0.2
       ###
       @sprite.y += @speed
+    else if(@typeOf == 4)
+      if gametime > @lastShoot
+        @lastShoot = gametime + Math.floor((Math.random() * 15) + 3)
+        shoot = new Shoot(@scene, @engine, { type: 2, x: @sprite.x + 60, y: @sprite.y + 120, side: true, net: true })
+        shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: 3, y: 20 }, net: true })
+        shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: -3, y: 20 }, net: true })
+        shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: 6, y: 20 }, net: true })
+        shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: -6, y: 20 }, net: true })
+
+      if @sprite.y < 50
+        @speed += 0.2
+        @sprite.y += @speed
+      else
+        if @cache.direction
+          @sprite.x -= @speed
+          if @sprite.x < 100
+            @cache.direction = false
+        else
+          @sprite.x += @speed
+          if @sprite.x > 1080
+            @cache.direction = true
     if @sprite.y > 1080
       @delete()
       return
-    if ndgmr.checkRectCollision(@scene.player, @sprite) != null
+    if ndgmr.checkRectCollision(@scene.player, @sprite) != null and @typeOf != 4
       @scene.removeLife 5
       @delete()
       return
     for a in @scene.allies
-      if ndgmr.checkRectCollision(a.sprite, @sprite) != null
+      if ndgmr.checkRectCollision(a.sprite, @sprite) != null and @typeOf != 4
         a.removeLife 5
         @delete()
         return
