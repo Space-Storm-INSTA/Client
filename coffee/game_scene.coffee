@@ -13,7 +13,7 @@ class GameScene
     @score = 0
     @engine = engine
     @master = false
-    @playerWeapon = 2
+    @playerWeapon = 1
 
     # Musics
     createjs.Sound.registerSound("assets/shoot-1.mp3", "shootSound1")
@@ -471,7 +471,7 @@ class Enemy
       instance.volume = 0.15
 
   takeDamage: (pt = 1) ->
-    if @typeOf == 4
+    if @typeOf == 4 or @typeOf == 6
       frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09"]
       exploType = 3
       scale = 0
@@ -513,6 +513,13 @@ class Enemy
         @speed -= 0.2
       ###
       @sprite.y += @speed
+    else if (@typeOf == 6)
+      @sprite.rotation += 5
+      @sprite.y += @speed
+      if gametime > @lastShoot
+        @lastShoot = gametime + Math.floor((Math.random() * 15) + 3)
+        shoot = new Shoot(@scene, @engine, { type: 2, x: @sprite.x + 60, y: @sprite.y + 120, side: true, net: true })
+
     else if(@typeOf == 4)
       if gametime > @lastShoot
         @lastShoot = gametime + Math.floor((Math.random() * 15) + 3)

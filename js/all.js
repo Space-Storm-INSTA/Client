@@ -19,7 +19,7 @@
       this.score = 0;
       this.engine = engine;
       this.master = false;
-      this.playerWeapon = 2;
+      this.playerWeapon = 1;
       createjs.Sound.registerSound("assets/shoot-1.mp3", "shootSound1");
       createjs.Sound.registerSound("assets/explosion-1.mp3", "explosion");
       musicLoad = (function(_this) {
@@ -788,7 +788,7 @@
       if (pt == null) {
         pt = 1;
       }
-      if (this.typeOf === 4) {
+      if (this.typeOf === 4 || this.typeOf === 6) {
         frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09"];
         exploType = 3;
         scale = 0;
@@ -846,6 +846,19 @@
           @speed -= 0.2
          */
         this.sprite.y += this.speed;
+      } else if (this.typeOf === 6) {
+        this.sprite.rotation += 5;
+        this.sprite.y += this.speed;
+        if (gametime > this.lastShoot) {
+          this.lastShoot = gametime + Math.floor((Math.random() * 15) + 3);
+          shoot = new Shoot(this.scene, this.engine, {
+            type: 2,
+            x: this.sprite.x + 60,
+            y: this.sprite.y + 120,
+            side: true,
+            net: true
+          });
+        }
       } else if (this.typeOf === 4) {
         if (gametime > this.lastShoot) {
           this.lastShoot = gametime + Math.floor((Math.random() * 15) + 3);
