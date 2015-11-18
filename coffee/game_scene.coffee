@@ -1,4 +1,11 @@
 class GameScene
+  getUrlGet: () ->
+    get = []
+    if window.location.href.indexOf('?') >= 0
+      for mesGets in window.location.href.split('?')[1].split('&')
+        get.push {name:mesGets.split('=')[0], value:mesGets.split('=')[1]}
+    return get
+    #id=3&token=342423423432
   onShow: (engine) ->
     @backgroundFixed = new createjs.Bitmap("assets/background1.jpg")
     @background = new createjs.Bitmap("assets/background1.jpg")
@@ -11,10 +18,11 @@ class GameScene
     @miscs = new Array()
     @lastBullet = 0
     @score = 0
+    @exp = 0
     @engine = engine
     @master = false
     @playerWeapon = 1
-
+    @urlGet = @getUrlGet()
     # Musics
     createjs.Sound.registerSound("assets/shoot-1.mp3", "shootSound1")
     createjs.Sound.registerSound("assets/explosion-1.mp3", "explosion")
@@ -176,11 +184,12 @@ class GameScene
         position: { x: @player.x, y: @player.y }
       }))
 
-  removeLife: (pts) ->
+  removeLife: (type) ->
     if @master
       @socket.send(JSON.stringify({
           opcode: 10
           id: @playerId
+          type: type
         }))
 
   getAllie: (id) ->
@@ -189,7 +198,7 @@ class GameScene
       if a.id == id then return a
 
   connectToServer: ->
-    @socket = new WebSocket("ws://5.196.69.227:3001/");
+    @socket = new WebSocket "ws://5.196.69.227:3001/"
     @socket.onmessage = (e) =>
       data = JSON.parse(e.data)
       switch data.opcode
@@ -197,7 +206,12 @@ class GameScene
           @master = true
           console.log "Im master"
         when 1 # Welcome
-          @playerId = Math.floor((Math.random() * 987653) + 1)
+          @playerId = 0
+          for get in @urlGet
+            if get.name is "id"
+              @playerId = get.value
+          if @playerId is 0
+            @playerId = Math.floor((Math.random() * 987653) + 1)
           @socket.send(JSON.stringify({
               opcode: 2
               id: @playerId
@@ -272,11 +286,16 @@ class GameScene
           $("#bigtext").show()
           $("#bigtext").animate { opacity: 1 }, 2000
           $("#bigtext").css 'color', data.color
-          $("#bigtext").text(partie)
+          $("#bigtext").html partie
           console.log 'Text : ' + partie
           setTimeout(=>
             $("#bigtext").animate { opacity: 0 }, 2000
           , 5000)
+        when 12, 21
+          $("[data-exp]").html data.exp + " points - level #{data.level}"
+          $("[data-exp-bar]").css('width', (100 * data.exp / data.maxexp) + "%")
+          $("[data-score]").html "#{data.score} points global"
+
         when 20 # Player dead
           console.log "player dead"
           frames = ["01", "02", "03", "04", "05", "06" , "07", "08", "09", "10"]
@@ -299,8 +318,11 @@ class GameScene
                   scale: scale
                 })
             , i * 200)
-
-
+        when 22 #bonus
+          @playerWeapon = data.arme
+          setTimeout =>
+            @playerWeapon = 1
+          , data.Mseconde
       #console.log data
 
 class Allie
@@ -528,7 +550,6 @@ class Enemy
         shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: -3, y: 20 }, net: true })
         shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: 6, y: 20 }, net: true })
         shoot = new Shoot(@scene, @engine, { type: 3, x: @sprite.x + 60, y: @sprite.y + 120, side: true, offset: { x: -6, y: 20 }, net: true })
-
       if @sprite.y < 50
         @speed += 0.2
         @sprite.y += @speed
@@ -541,11 +562,21 @@ class Enemy
           @sprite.x += @speed
           if @sprite.x > 1080
             @cache.direction = true
+    else if(@typeOf == 8)
+      #@sprite.rotation += 5
+      ###
+      if @sprite.y < 100
+        @speed += 0.5
+      else
+        @speed -= 0.2
+      ###
+      @sprite.y += @speed
+
     if @sprite.y > 1080
       @delete()
       return
     if ndgmr.checkRectCollision(@scene.player, @sprite) != null and @typeOf != 4
-      @scene.removeLife 5
+      @scene.removeLife @typeOf
       @delete()
       return
     for a in @scene.allies

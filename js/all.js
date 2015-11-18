@@ -4,6 +4,22 @@
   GameScene = (function() {
     function GameScene() {}
 
+    GameScene.prototype.getUrlGet = function() {
+      var get, j, len, mesGets, ref;
+      get = [];
+      if (window.location.href.indexOf('?') >= 0) {
+        ref = window.location.href.split('?')[1].split('&');
+        for (j = 0, len = ref.length; j < len; j++) {
+          mesGets = ref[j];
+          get.push({
+            name: mesGets.split('=')[0],
+            value: mesGets.split('=')[1]
+          });
+        }
+      }
+      return get;
+    };
+
     GameScene.prototype.onShow = function(engine) {
       var musicLoad, playerLeftModel, playerNormalModel, playerRightModel;
       this.backgroundFixed = new createjs.Bitmap("assets/background1.jpg");
@@ -17,9 +33,11 @@
       this.miscs = new Array();
       this.lastBullet = 0;
       this.score = 0;
+      this.exp = 0;
       this.engine = engine;
       this.master = false;
       this.playerWeapon = 1;
+      this.urlGet = this.getUrlGet();
       createjs.Sound.registerSound("assets/shoot-1.mp3", "shootSound1");
       createjs.Sound.registerSound("assets/explosion-1.mp3", "explosion");
       musicLoad = (function(_this) {
@@ -352,11 +370,12 @@
       }));
     };
 
-    GameScene.prototype.removeLife = function(pts) {
+    GameScene.prototype.removeLife = function(type) {
       if (this.master) {
         return this.socket.send(JSON.stringify({
           opcode: 10,
-          id: this.playerId
+          id: this.playerId,
+          type: type
         }));
       }
     };
@@ -377,14 +396,24 @@
       this.socket = new WebSocket("ws://5.196.69.227:3001/");
       return this.socket.onmessage = (function(_this) {
         return function(e) {
-          var a, allie, data, enemy, exploType, frames, i, j, k, l, len, len1, n, offset, partie, ref, ref1, results, results1, results2, scale, shoot, x, y;
+          var a, allie, data, enemy, exploType, frames, get, i, j, k, l, len, len1, len2, n, o, offset, partie, ref, ref1, ref2, results, results1, results2, scale, shoot, x, y;
           data = JSON.parse(e.data);
           switch (data.opcode) {
             case 0:
               _this.master = true;
               return console.log("Im master");
             case 1:
-              _this.playerId = Math.floor((Math.random() * 987653) + 1);
+              _this.playerId = 0;
+              ref = _this.urlGet;
+              for (j = 0, len = ref.length; j < len; j++) {
+                get = ref[j];
+                if (get.name === "id") {
+                  _this.playerId = get.value;
+                }
+              }
+              if (_this.playerId === 0) {
+                _this.playerId = Math.floor((Math.random() * 987653) + 1);
+              }
               return _this.socket.send(JSON.stringify({
                 opcode: 2,
                 id: _this.playerId
@@ -393,10 +422,10 @@
               allie = new Allie(_this, _this.engine, data.id);
               return _this.allies.push(allie);
             case 4:
-              ref = _this.allies;
+              ref1 = _this.allies;
               results = [];
-              for (j = 0, len = ref.length; j < len; j++) {
-                a = ref[j];
+              for (k = 0, len1 = ref1.length; k < len1; k++) {
+                a = ref1[k];
                 if (a.id === data.id) {
                   a.sprite.x = data.x;
                   results.push(a.sprite.y = data.y);
@@ -408,10 +437,10 @@
               break;
             case 5:
               console.log("Remove player " + data.id);
-              ref1 = _this.allies;
+              ref2 = _this.allies;
               results1 = [];
-              for (k = 0, len1 = ref1.length; k < len1; k++) {
-                a = ref1[k];
+              for (l = 0, len2 = ref2.length; l < len2; l++) {
+                a = ref2[l];
                 if (a.id === data.id) {
                   results1.push(a["delete"]());
                 } else {
@@ -467,7 +496,7 @@
                 offset = -80;
                 x = _this.player.x;
                 y = _this.player.y;
-                for (i = l = 0; l <= 5; i = ++l) {
+                for (i = n = 0; n <= 5; i = ++n) {
                   setTimeout(function() {
                     var explo, instance;
                     instance = createjs.Sound.play("explosion");
@@ -494,13 +523,18 @@
                 opacity: 1
               }, 2000);
               $("#bigtext").css('color', data.color);
-              $("#bigtext").text(partie);
+              $("#bigtext").html(partie);
               console.log('Text : ' + partie);
               return setTimeout(function() {
                 return $("#bigtext").animate({
                   opacity: 0
                 }, 2000);
               }, 5000);
+            case 12:
+            case 21:
+              $("[data-exp]").html(data.exp + (" points - level " + data.level));
+              $("[data-exp-bar]").css('width', (100 * data.exp / data.maxexp) + "%");
+              return $("[data-score]").html(data.score + " points global");
             case 20:
               console.log("player dead");
               frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"];
@@ -511,7 +545,7 @@
               x = a.sprite.x;
               y = a.sprite.y;
               results2 = [];
-              for (i = n = 0; n <= 5; i = ++n) {
+              for (i = o = 0; o <= 5; i = ++o) {
                 results2.push(setTimeout(function() {
                   var explo, instance;
                   instance = createjs.Sound.play("explosion");
@@ -527,6 +561,12 @@
                 }, i * 200));
               }
               return results2;
+              break;
+            case 22:
+              _this.playerWeapon = data.arme;
+              return setTimeout(function() {
+                return _this.playerWeapon = 1;
+              }, data.Mseconde);
           }
         };
       })(this);
@@ -930,13 +970,22 @@
             }
           }
         }
+      } else if (this.typeOf === 8) {
+
+        /*
+        if @sprite.y < 100
+          @speed += 0.5
+        else
+          @speed -= 0.2
+         */
+        this.sprite.y += this.speed;
       }
       if (this.sprite.y > 1080) {
         this["delete"]();
         return;
       }
       if (ndgmr.checkRectCollision(this.scene.player, this.sprite) !== null && this.typeOf !== 4) {
-        this.scene.removeLife(5);
+        this.scene.removeLife(this.typeOf);
         this["delete"]();
         return;
       }
