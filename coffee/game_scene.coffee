@@ -208,13 +208,11 @@ class GameScene
         when 1 # Welcome
           @playerId = 0
           for get in @urlGet
-            if get.name is "id"
+            if get.name is "token"
               @playerId = get.value
-          if @playerId is 0
-            @playerId = Math.floor((Math.random() * 987653) + 1)
           @socket.send(JSON.stringify({
               opcode: 2
-              id: @playerId
+              token: @playerId
             }))
         when 3 # New player incoming
           allie = new Allie(@, @engine, data.id)

@@ -407,16 +407,13 @@
               ref = _this.urlGet;
               for (j = 0, len = ref.length; j < len; j++) {
                 get = ref[j];
-                if (get.name === "id") {
+                if (get.name === "token") {
                   _this.playerId = get.value;
                 }
               }
-              if (_this.playerId === 0) {
-                _this.playerId = Math.floor((Math.random() * 987653) + 1);
-              }
               return _this.socket.send(JSON.stringify({
                 opcode: 2,
-                id: _this.playerId
+                token: _this.playerId
               }));
             case 3:
               allie = new Allie(_this, _this.engine, data.id);
