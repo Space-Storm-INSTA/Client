@@ -18,7 +18,6 @@ class GameScene
     @miscs = new Array()
     @lastBullet = 0
     @score = 0
-    @exp = 0
     @engine = engine
     @master = false
     @playerWeapon = 1
@@ -214,6 +213,8 @@ class GameScene
               opcode: 2
               token: @playerId
             }))
+        when 2
+          @playerId = data.id
         when 3 # New player incoming
           allie = new Allie(@, @engine, data.id)
           @allies.push allie
@@ -578,6 +579,7 @@ class Enemy
       @delete()
       return
     for a in @scene.allies
+      console.log "t"
       if ndgmr.checkRectCollision(a.sprite, @sprite) != null and @typeOf != 4
         a.removeLife 5
         @delete()

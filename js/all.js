@@ -33,7 +33,6 @@
       this.miscs = new Array();
       this.lastBullet = 0;
       this.score = 0;
-      this.exp = 0;
       this.engine = engine;
       this.master = false;
       this.playerWeapon = 1;
@@ -415,6 +414,8 @@
                 opcode: 2,
                 token: _this.playerId
               }));
+            case 2:
+              return _this.playerId = data.id;
             case 3:
               allie = new Allie(_this, _this.engine, data.id);
               return _this.allies.push(allie);
@@ -989,6 +990,7 @@
       ref = this.scene.allies;
       for (j = 0, len = ref.length; j < len; j++) {
         a = ref[j];
+        console.log("t");
         if (ndgmr.checkRectCollision(a.sprite, this.sprite) !== null && this.typeOf !== 4) {
           a.removeLife(5);
           this["delete"]();
