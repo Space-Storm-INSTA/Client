@@ -18,6 +18,8 @@ class GameScene
     @miscs = new Array()
     @lastBullet = 0
     @score = 0
+    @exp = 0
+    @bonus_arme = 0
     @engine = engine
     @master = false
     @playerWeapon = 1
@@ -82,6 +84,10 @@ class GameScene
       @playerMovements.shoot = true
     , =>
       @playerMovements.shoot = false
+    keyboardJS.bind 'a', (e) =>
+      @socket.send(JSON.stringify({
+          opcode: 30
+        }))
     @connectToServer()
 
     setInterval(=>
@@ -192,12 +198,11 @@ class GameScene
         }))
 
   getAllie: (id) ->
-    console.log id
     for a in @allies
       if a.id == id then return a
 
   connectToServer: ->
-    @socket = new WebSocket "ws://5.196.69.227:3001/"
+    @socket = new WebSocket "ws://5.196.69.227:3000/"
     @socket.onmessage = (e) =>
       data = JSON.parse(e.data)
       switch data.opcode
@@ -216,6 +221,8 @@ class GameScene
         when 2
           @playerId = data.id
         when 3 # New player incoming
+          if data.id is "nok"
+            data.id = 0
           allie = new Allie(@, @engine, data.id)
           @allies.push allie
         when 4 #  Update position
@@ -291,9 +298,10 @@ class GameScene
             $("#bigtext").animate { opacity: 0 }, 2000
           , 5000)
         when 12, 21
+          @bonus_arme = data.bonus_arme
           $("[data-exp]").html data.exp + " points - level #{data.level}"
           $("[data-exp-bar]").css('width', (100 * data.exp / data.maxexp) + "%")
-          $("[data-score]").html "#{data.score} points global"
+          $("[data-score]").html "#{data.score} points global<br />Arme bonus : #{data.bonus_arme}"
 
         when 20 # Player dead
           console.log "player dead"
@@ -323,7 +331,11 @@ class GameScene
             @playerWeapon = 1
           , data.Mseconde
       #console.log data
-
+        when 31 #arme
+          @playerWeapon = data.arme_bonus
+          setInterval =>
+            @playerWeapon = 1
+          , data.milli
 class Allie
   constructor: (@scene, @engine, @id) ->
     console.log "New player #{@id} joined the game"
@@ -579,7 +591,6 @@ class Enemy
       @delete()
       return
     for a in @scene.allies
-      console.log "t"
       if ndgmr.checkRectCollision(a.sprite, @sprite) != null and @typeOf != 4
         a.removeLife 5
         @delete()

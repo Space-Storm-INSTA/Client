@@ -33,6 +33,8 @@
       this.miscs = new Array();
       this.lastBullet = 0;
       this.score = 0;
+      this.exp = 0;
+      this.bonus_arme = 0;
       this.engine = engine;
       this.master = false;
       this.playerWeapon = 1;
@@ -125,6 +127,13 @@
       })(this), (function(_this) {
         return function() {
           return _this.playerMovements.shoot = false;
+        };
+      })(this));
+      keyboardJS.bind('a', (function(_this) {
+        return function(e) {
+          return _this.socket.send(JSON.stringify({
+            opcode: 30
+          }));
         };
       })(this));
       this.connectToServer();
@@ -381,7 +390,6 @@
 
     GameScene.prototype.getAllie = function(id) {
       var a, j, len, ref;
-      console.log(id);
       ref = this.allies;
       for (j = 0, len = ref.length; j < len; j++) {
         a = ref[j];
@@ -392,7 +400,7 @@
     };
 
     GameScene.prototype.connectToServer = function() {
-      this.socket = new WebSocket("ws://5.196.69.227:3001/");
+      this.socket = new WebSocket("ws://5.196.69.227:3000/");
       return this.socket.onmessage = (function(_this) {
         return function(e) {
           var a, allie, data, enemy, exploType, frames, get, i, j, k, l, len, len1, len2, n, o, offset, partie, ref, ref1, ref2, results, results1, results2, scale, shoot, x, y;
@@ -417,6 +425,9 @@
             case 2:
               return _this.playerId = data.id;
             case 3:
+              if (data.id === "nok") {
+                data.id = 0;
+              }
               allie = new Allie(_this, _this.engine, data.id);
               return _this.allies.push(allie);
             case 4:
@@ -530,9 +541,10 @@
               }, 5000);
             case 12:
             case 21:
+              _this.bonus_arme = data.bonus_arme;
               $("[data-exp]").html(data.exp + (" points - level " + data.level));
               $("[data-exp-bar]").css('width', (100 * data.exp / data.maxexp) + "%");
-              return $("[data-score]").html(data.score + " points global");
+              return $("[data-score]").html(data.score + " points global<br />Arme bonus : " + data.bonus_arme);
             case 20:
               console.log("player dead");
               frames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"];
@@ -565,6 +577,11 @@
               return setTimeout(function() {
                 return _this.playerWeapon = 1;
               }, data.Mseconde);
+            case 31:
+              _this.playerWeapon = data.arme_bonus;
+              return setInterval(function() {
+                return _this.playerWeapon = 1;
+              }, data.milli);
           }
         };
       })(this);
@@ -990,7 +1007,6 @@
       ref = this.scene.allies;
       for (j = 0, len = ref.length; j < len; j++) {
         a = ref[j];
-        console.log("t");
         if (ndgmr.checkRectCollision(a.sprite, this.sprite) !== null && this.typeOf !== 4) {
           a.removeLife(5);
           this["delete"]();
